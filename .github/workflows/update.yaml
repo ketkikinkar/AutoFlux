@@ -1,93 +1,35 @@
-name: CI and Self-Updating Repository
+name: GitHub Self-Updating Repository Demo
 
 on:
-  # Runs on push to main branch
-  push:
-    branches: [ "main" ]
-  # Scheduled run: once every day at 00:00
+  # https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
   schedule:
+    # The shortest interval you can run scheduled workflows is once every 5 minutes.
+    # Note: The schedule event can be delayed during periods of high loads of GitHub Actions workflow runs.
+    # High load times include the start of every hour.
+    # To decrease the chance of delay, schedule your workflow to run at a different time of the hour.
+    # Every 5 minutes.
+    # - cron: '*/5 * * * *'
+    # At the beginning of every day.
     - cron: "0 0 * * *"
 
-# Ensures only one instance of this workflow runs at a time (useful for frequent schedules)
-concurrency:
-  group: self-updating
-  cancel-in-progress: true
+# on: [push]
 
 jobs:
-  # 1) Build and Test Job
-  build-and-test:
+  report:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
+        # https://github.com/actions/checkout/tree/v3.0.2
         uses: actions/checkout@v3
-
-      - name: Use Node.js 16.x
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run tests
+      - name: Modify date and time
         run: |
-          # Example test command that outputs JSON (adjust as needed)
-          npm test -- --json --outputFile=./test-results.json
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-results
-          path: ./test-results.json
-
-  # 2) Self-Update Job
-  update-readme:
-    # This job depends on the build-and-test job (sequential)
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v3
-
-      - name: Download test results
-        uses: actions/download-artifact@v3
-        with:
-          name: test-results
-          path: .
-      
-      - name: Parse test results and update README
-        run: |
-          # Example using jq to parse JSON test results (assuming Jest style output).
-          # Adjust parsing logic for your specific test output format.
-          total_tests=$(cat test-results.json | jq '.numTotalTests')
-          total_passed=$(cat test-results.json | jq '.numPassedTests')
-          total_failed=$(cat test-results.json | jq '.numFailedTests')
-
-          # Generate a summary string
-          echo "## Automated Build & Test Results" > README.md
-          echo "" >> README.md
-          echo "**Date and Time (UTC):** $(date -u)" >> README.md
-          echo "" >> README.md
-          echo "**Total Tests:** $total_tests" >> README.md
-          echo "**Passed:** $total_passed" >> README.md
-          echo "**Failed:** $total_failed" >> README.md
-
-          # Display file for debugging
-          echo "New README.md content:"
+          date > README.md
           cat README.md
-
-      - name: Configure git
+      - name: Push to repository
         run: |
           git config --global user.name "ketkikinkar"
           git config --global user.email "ketki.kinkar2000@gmail.com"
-
-      - name: Commit and Push changes
-        run: |
-          # Only commit if README.md has changes
-          if [ -n "$(git status --porcelain)" ]; then
-            git add README.md
-            git commit -m "Automated update: $(date -u)"
-            git push
-          else
-            echo "No changes to commit."
-          fi
+          now=$(date)
+          git add -A
+          git commit -m "Auto Push on $now"
+          git push
